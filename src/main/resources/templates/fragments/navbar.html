@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+    <!-- Common Navigation Bar Fragment with Role-Based Navigation -->
+    <nav th:fragment="navbar" class="navbar navbar-expand-lg navbar-dark navbar-custom">
+        <div class="container">
+            <a class="navbar-brand" th:href="@{/}">
+                <span>🏛️</span>
+                <span>Hostel Mess Management</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"
+                    aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarContent">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" th:href="@{/}">Home</a>
+                    </li>
+
+                    <!-- ADMIN Role Links -->
+                    <li class="nav-item" sec:authorize="hasRole('ADMIN')">
+                        <a class="nav-link" th:href="@{/admin/dashboard}">Dashboard</a>
+                    </li>
+                    <li class="nav-item" sec:authorize="hasRole('ADMIN')">
+                        <a class="nav-link" th:href="@{/admin/students}">Students</a>
+                    </li>
+                    <li class="nav-item" sec:authorize="hasRole('ADMIN')">
+                        <a class="nav-link" th:href="@{/admin/exemptions}">Exemptions</a>
+                    </li>
+                    <li class="nav-item" sec:authorize="hasRole('ADMIN')">
+                        <a class="nav-link" th:href="@{/admin/billing}">Billing</a>
+                    </li>
+
+                    <!-- STUDENT Role Links -->
+                    <li class="nav-item" sec:authorize="hasRole('STUDENT')">
+                        <a class="nav-link" th:href="@{/student/dashboard}">Dashboard</a>
+                    </li>
+                    <li class="nav-item" sec:authorize="hasRole('STUDENT')">
+                        <a class="nav-link" th:href="@{/student/exemptions}">My Exemptions</a>
+                    </li>
+                    <li class="nav-item" sec:authorize="hasRole('STUDENT')">
+                        <a class="nav-link" th:href="@{/student/bills}">My Invoices</a>
+                    </li>
+
+                    <!-- MESS_STAFF Role Links -->
+                    <li class="nav-item" sec:authorize="hasRole('MESS_STAFF')">
+                        <a class="nav-link" th:href="@{/mess/dashboard}">Kitchen Attendance</a>
+                    </li>
+                </ul>
+
+                <!-- Authentication Section in Navbar -->
+                <div class="d-flex align-items-center gap-2">
+                    <!-- Guest View -->
+                    <div sec:authorize="!isAuthenticated()">
+                        <a th:href="@{/login}" class="btn btn-sm btn-light fw-semibold px-3">
+                            Sign In
+                        </a>
+                    </div>
+
+                    <!-- Logged-in View -->
+                    <div sec:authorize="isAuthenticated()" class="d-flex align-items-center gap-2">
+                        <span class="badge bg-light text-dark py-2 px-3">
+                            👤 <span sec:authentication="name">User</span>
+                            <span class="badge bg-danger ms-1" sec:authorize="hasRole('ADMIN')">ADMIN</span>
+                            <span class="badge bg-primary ms-1" sec:authorize="hasRole('STUDENT')">STUDENT</span>
+                            <span class="badge bg-secondary ms-1" sec:authorize="hasRole('MESS_STAFF')">MESS_STAFF</span>
+                        </span>
+                        <form th:action="@{/logout}" method="post" class="d-inline m-0">
+                            <button type="submit" class="btn btn-sm btn-outline-light">
+                                Logout
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+</body>
+</html>

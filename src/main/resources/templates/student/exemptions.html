@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('My Meal Exemptions', ~{::content})}">
+<head>
+    <title>My Meal Exemptions</title>
+</head>
+<body>
+    <div th:fragment="content">
+        
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+            <div>
+                <h1 class="h4 mb-1">My Meal Exemption Applications</h1>
+                <p class="text-muted small mb-0">Track all your advance meal leave requests and cancel before cutoff times.</p>
+            </div>
+            <a th:href="@{/student/dashboard}" class="btn btn-outline-secondary btn-sm">&larr; Back to Dashboard</a>
+        </div>
+
+        <!-- Feedback Alerts -->
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show py-2 px-3 small" role="alert">
+            <span th:text="${successMessage}">Success message</span>
+            <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show py-2 px-3 small" role="alert">
+            <span th:text="${errorMessage}">Error message</span>
+            <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <!-- Exemption Table Card -->
+        <div class="card border bg-white mb-4">
+            <div class="card-header bg-white py-3">
+                <h2 class="h6 mb-0 fw-bold">All Submitted Exemptions</h2>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Target Date</th>
+                                <th>Meal Slot</th>
+                                <th>Submitted Timestamp</th>
+                                <th>Status</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:if="${#lists.isEmpty(exemptions)}">
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    You have not submitted any meal exemptions yet.
+                                </td>
+                            </tr>
+                            <tr th:each="ex, stat : ${exemptions}">
+                                <td th:text="${stat.count}">1</td>
+                                <td class="fw-semibold" th:text="${#temporals.format(ex.targetDate, 'dd-MMM-yyyy')}">20-Nov-2026</td>
+                                <td>
+                                    <span class="badge bg-light text-dark border" th:text="${ex.mealSlot}">BREAKFAST</span>
+                                </td>
+                                <td class="small text-muted" th:text="${#temporals.format(ex.createdAt, 'dd-MMM-yyyy hh:mm a')}">Timestamp</td>
+                                <td>
+                                    <span th:if="${ex.status.name() == 'APPROVED'}" class="badge bg-success">APPROVED</span>
+                                    <span th:if="${ex.status.name() == 'CANCELLED'}" class="badge bg-secondary">CANCELLED</span>
+                                    <span th:if="${ex.status.name() == 'REJECTED'}" class="badge bg-danger">REJECTED</span>
+                                </td>
+                                <td class="text-end">
+                                    <form th:if="${ex.status.name() == 'APPROVED'}"
+                                          th:action="@{'/student/exemptions/cancel/' + ${ex.exemptionId}}"
+                                          method="post" class="d-inline m-0">
+                                        <input type="hidden" name="source" value="exemptions">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2"
+                                                onclick="return confirm('Cancel this meal exemption before its cutoff?');">
+                                            Cancel
+                                        </button>
+                                    </form>
+                                    <span th:if="${ex.status.name() == 'CANCELLED'}" class="small text-muted">Cancelled</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

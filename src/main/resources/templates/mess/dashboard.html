@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{fragments/layout :: layout('Mess Kitchen Attendance', ~{::content})}">
+<head>
+    <title>Mess Kitchen Attendance</title>
+</head>
+<body>
+    <div th:fragment="content">
+        
+        <!-- Header & Profile -->
+        <div class="card mb-4 border bg-white">
+            <div class="card-body p-4">
+                <div class="row align-items-center">
+                    <div class="col-md-7">
+                        <span class="badge bg-secondary text-white mb-2">Kitchen Operations</span>
+                        <h1 class="h3 mb-1">Daily Meal Attendance &amp; Planning</h1>
+                        <p class="text-muted mb-0 small">
+                            Logged in as: <strong><span th:text="${currentUser != null ? currentUser.fullName : #authentication.name}">Mess Staff</span></strong> &bull;
+                            Active Enrolled Diners: <strong><span th:text="${attendance.totalActiveStudents}">0</span> students</strong>
+                        </p>
+                    </div>
+                    
+                    <!-- Date Picker Filter -->
+                    <div class="col-md-5 mt-3 mt-md-0">
+                        <form th:action="@{/mess/dashboard}" method="get" class="d-flex gap-2 justify-content-md-end align-items-center">
+                            <label for="date" class="small fw-semibold text-muted mb-0 text-nowrap">Attendance Date:</label>
+                            <input type="date" class="form-control form-control-sm" id="date" name="date" th:value="${selectedDate}" style="max-width: 160px;" required>
+                            <button type="submit" class="btn btn-sm btn-primary">Load</button>
+                            <a th:href="@{/mess/dashboard}" class="btn btn-sm btn-outline-secondary" title="Reset to Today">Today</a>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3 d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0 fw-bold">
+                Expected Diners for: <span class="text-primary" th:text="${#temporals.format(selectedDate, 'EEEE, dd-MMM-yyyy')}">Date</span>
+            </h2>
+            <span class="small text-muted">
+                Formula: <code>Expected Diners = Active Residents (<span th:text="${attendance.totalActiveStudents}">0</span>) - Approved Exemptions</code>
+            </span>
+        </div>
+
+        <!-- 3 Expected Attendance Metric Cards -->
+        <div class="row g-3 mb-4">
+            
+            <!-- Breakfast Card -->
+            <div class="col-md-4">
+                <div class="card border bg-white h-100">
+                    <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-dark">🌅 Breakfast</span>
+                        <span class="badge bg-light text-muted border">Morning</span>
+                    </div>
+                    <div class="card-body p-4 text-center">
+                        <span class="text-muted small text-uppercase fw-semibold d-block">Expected Diners</span>
+                        <h2 class="display-5 fw-bold text-primary my-1" th:text="${attendance.breakfastExpectedDiners}">0</h2>
+                        <small class="text-muted">
+                            <span class="text-danger fw-semibold" th:text="${attendance.breakfastExemptionsCount}">0</span> students exempted
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lunch Card -->
+            <div class="col-md-4">
+                <div class="card border bg-white h-100">
+                    <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-dark">☀️ Lunch</span>
+                        <span class="badge bg-light text-muted border">Afternoon</span>
+                    </div>
+                    <div class="card-body p-4 text-center">
+                        <span class="text-muted small text-uppercase fw-semibold d-block">Expected Diners</span>
+                        <h2 class="display-5 fw-bold text-success my-1" th:text="${attendance.lunchExpectedDiners}">0</h2>
+                        <small class="text-muted">
+                            <span class="text-danger fw-semibold" th:text="${attendance.lunchExemptionsCount}">0</span> students exempted
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dinner Card -->
+            <div class="col-md-4">
+                <div class="card border bg-white h-100">
+                    <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-dark">🌙 Dinner</span>
+                        <span class="badge bg-light text-muted border">Evening</span>
+                    </div>
+                    <div class="card-body p-4 text-center">
+                        <span class="text-muted small text-uppercase fw-semibold d-block">Expected Diners</span>
+                        <h2 class="display-5 fw-bold text-primary my-1" th:text="${attendance.dinnerExpectedDiners}">0</h2>
+                        <small class="text-muted">
+                            <span class="text-danger fw-semibold" th:text="${attendance.dinnerExemptionsCount}">0</span> students exempted
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Meal-wise Resident Exemption Lists (Tabs or Accordion) -->
+        <div class="card border bg-white">
+            <div class="card-header bg-white py-3">
+                <h3 class="h6 mb-0 fw-bold">Residents on Approved Leave for <span th:text="${#temporals.format(selectedDate, 'dd-MMM-yyyy')}">Date</span></h3>
+                <small class="text-muted">List of students exempted from food preparation for the selected date.</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="row g-0">
+                    
+                    <!-- Breakfast List -->
+                    <div class="col-md-4 border-end">
+                        <div class="p-3 bg-light border-bottom fw-bold text-dark small d-flex justify-content-between">
+                            <span>Breakfast Leaves</span>
+                            <span class="badge bg-secondary" th:text="${attendance.breakfastExemptionsCount}">0</span>
+                        </div>
+                        <ul class="list-group list-group-flush small" style="max-height: 250px; overflow-y: auto;">
+                            <li th:if="${#lists.isEmpty(attendance.breakfastExemptions)}" class="list-group-item text-muted text-center py-3">
+                                No exemptions for breakfast.
+                            </li>
+                            <li th:each="ex : ${attendance.breakfastExemptions}" class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong th:text="${ex.user.fullName}">Student</strong>
+                                    <small class="d-block text-muted" th:text="'Room: ' + ${ex.user.roomNo}">Room</small>
+                                </div>
+                                <span class="badge bg-light text-dark border">Roll: <span th:text="${ex.user.username}">user</span></span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Lunch List -->
+                    <div class="col-md-4 border-end">
+                        <div class="p-3 bg-light border-bottom fw-bold text-dark small d-flex justify-content-between">
+                            <span>Lunch Leaves</span>
+                            <span class="badge bg-secondary" th:text="${attendance.lunchExemptionsCount}">0</span>
+                        </div>
+                        <ul class="list-group list-group-flush small" style="max-height: 250px; overflow-y: auto;">
+                            <li th:if="${#lists.isEmpty(attendance.lunchExemptions)}" class="list-group-item text-muted text-center py-3">
+                                No exemptions for lunch.
+                            </li>
+                            <li th:each="ex : ${attendance.lunchExemptions}" class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong th:text="${ex.user.fullName}">Student</strong>
+                                    <small class="d-block text-muted" th:text="'Room: ' + ${ex.user.roomNo}">Room</small>
+                                </div>
+                                <span class="badge bg-light text-dark border">Roll: <span th:text="${ex.user.username}">user</span></span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Dinner List -->
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light border-bottom fw-bold text-dark small d-flex justify-content-between">
+                            <span>Dinner Leaves</span>
+                            <span class="badge bg-secondary" th:text="${attendance.dinnerExemptionsCount}">0</span>
+                        </div>
+                        <ul class="list-group list-group-flush small" style="max-height: 250px; overflow-y: auto;">
+                            <li th:if="${#lists.isEmpty(attendance.dinnerExemptions)}" class="list-group-item text-muted text-center py-3">
+                                No exemptions for dinner.
+                            </li>
+                            <li th:each="ex : ${attendance.dinnerExemptions}" class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong th:text="${ex.user.fullName}">Student</strong>
+                                    <small class="d-block text-muted" th:text="'Room: ' + ${ex.user.roomNo}">Room</small>
+                                </div>
+                                <span class="badge bg-light text-dark border">Roll: <span th:text="${ex.user.username}">user</span></span>
+                            </li>
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

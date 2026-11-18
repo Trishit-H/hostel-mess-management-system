@@ -1,0 +1,175 @@
+/* ==============================================================================
+   Automated Hostel Mess Meal Exemption and Billing System
+   Academic UI Stylesheet - Clean, Minimal & Accessible
+   ============================================================================== */
+
+:root {
+    --primary-blue: #1a365d;
+    --primary-blue-hover: #10243e;
+    --primary-blue-light: #eef2f7;
+    --text-dark: #212529;
+    --text-muted: #596573;
+    --bg-light: #f8f9fa;
+    --bg-white: #ffffff;
+    --border-color: #dee2e6;
+    --border-subtle: #e9ecef;
+}
+
+body {
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+    color: var(--primary-blue);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+/* Header & Navigation Bar */
+.navbar-custom {
+    background-color: var(--primary-blue);
+    border-bottom: 2px solid #142a48;
+    padding: 0.75rem 1rem;
+}
+
+.navbar-custom .navbar-brand {
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 1.15rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.navbar-custom .navbar-brand:hover {
+    color: #f1f5f9;
+}
+
+.navbar-custom .nav-link {
+    color: #e2e8f0;
+    font-weight: 500;
+    padding: 0.5rem 0.85rem;
+    border-radius: 4px;
+}
+
+.navbar-custom .nav-link:hover {
+    color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.navbar-custom .nav-link.active {
+    color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.18);
+    font-weight: 600;
+}
+
+/* Page Wrapper */
+.page-container {
+    flex: 1 0 auto;
+    padding-top: 2rem;
+    padding-bottom: 2.5rem;
+}
+
+/* Cards & Content Panels */
+.card {
+    background-color: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-shadow: none;
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    background-color: var(--bg-white);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--primary-blue);
+    font-weight: 600;
+    padding: 1rem 1.25rem;
+}
+
+.card-body {
+    padding: 1.25rem;
+}
+
+/* Feature & Status Badges */
+.badge-academic {
+    background-color: var(--primary-blue-light);
+    color: var(--primary-blue);
+    border: 1px solid #c9d7e8;
+    font-weight: 600;
+    padding: 0.35rem 0.65rem;
+    border-radius: 4px;
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: var(--primary-blue);
+    border-color: var(--primary-blue);
+    color: #ffffff;
+    font-weight: 500;
+    padding: 0.5rem 1.2rem;
+    border-radius: 4px;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+    background-color: var(--primary-blue-hover) !important;
+    border-color: var(--primary-blue-hover) !important;
+    color: #ffffff !important;
+}
+
+.btn-outline-primary {
+    color: var(--primary-blue);
+    border-color: var(--primary-blue);
+    font-weight: 500;
+    padding: 0.5rem 1.2rem;
+    border-radius: 4px;
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--primary-blue);
+    border-color: var(--primary-blue);
+    color: #ffffff;
+}
+
+/* Tables */
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    background-color: var(--bg-light);
+    color: var(--primary-blue);
+    font-weight: 600;
+    border-bottom: 2px solid var(--border-color);
+}
+
+/* Status / Alert Banners */
+.alert-info-custom {
+    background-color: #ebf5fb;
+    border: 1px solid #c6e0f3;
+    color: #1a4971;
+    border-radius: 4px;
+    padding: 0.85rem 1.25rem;
+}
+
+/* Footer */
+footer.footer {
+    flex-shrink: 0;
+    background-color: #ffffff;
+    border-top: 1px solid var(--border-color);
+    padding: 1.25rem 0;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
