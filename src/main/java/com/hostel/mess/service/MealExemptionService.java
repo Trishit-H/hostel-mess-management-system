@@ -40,7 +40,7 @@ public class MealExemptionService {
      * Determines the exact cutoff timestamp for a meal slot:
      * - BREAKFAST: 8:00 PM (20:00) on the previous calendar day.
      * - LUNCH:     8:00 AM (08:00) on the same day.
-     * - DINNER:    8:00 AM (08:00) on the same day.
+     * - DINNER:    5:00 PM (17:00) on the same day.
      */
     public LocalDateTime getCutoffDateTime(LocalDate targetDate, MealSlot mealSlot) {
         if (targetDate == null || mealSlot == null) {
@@ -51,7 +51,7 @@ public class MealExemptionService {
         } else if (mealSlot == MealSlot.LUNCH) {
             return targetDate.atTime(8, 0);               // 8:00 AM on same day
         } else if (mealSlot == MealSlot.DINNER) {
-            return targetDate.atTime(8, 0);               // 8:00 AM on same day
+            return targetDate.atTime(17, 0);              // 5:00 PM on same day
         }
         throw new IllegalArgumentException("Unknown meal slot: " + mealSlot);
     }
