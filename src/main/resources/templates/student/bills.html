@@ -46,10 +46,11 @@
             </div>
         </div>
 
-        <!-- Finalized Monthly Bills Table -->
+        <!-- Monthly Billing Statements Table -->
         <div class="card border bg-white">
-            <div class="card-header bg-white py-3">
-                <h2 class="h6 mb-0 fw-bold">Finalized Monthly Billing Statements</h2>
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h2 class="h6 mb-0 fw-bold">Monthly Billing Statements</h2>
+                <small class="text-muted">Unpaid statements for ongoing billing cycles update automatically as new exemptions are approved.</small>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -63,18 +64,22 @@
                                 <th class="text-end">Rebate Deduction</th>
                                 <th class="text-end">Net Payable</th>
                                 <th class="text-center">Payment Status</th>
-                                <th class="text-end">Generated Timestamp</th>
+                                <th class="text-end">Last Updated / Generated</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr th:if="${#lists.isEmpty(bills)}">
                                 <td colspan="8" class="text-center text-muted py-4">
-                                    No finalized monthly bills have been generated yet for your account.
+                                    No monthly billing statements have been generated yet for your account.
                                 </td>
                             </tr>
                             <tr th:each="b, stat : ${bills}">
                                 <td th:text="${stat.count}">1</td>
-                                <td class="fw-bold text-primary" th:text="${b.billingMonth}">2026-11</td>
+                                <td class="fw-bold text-primary">
+                                    <span th:text="${b.billingMonth}">2026-11</span>
+                                    <span th:if="${b.billingMonth == currentRebate.billingMonth}" class="badge bg-info text-dark ms-1" style="font-size: 0.68rem;">Current Cycle</span>
+                                    <span th:if="${b.billingMonth != currentRebate.billingMonth}" class="badge bg-light text-dark border ms-1" style="font-size: 0.68rem;">Closed Cycle</span>
+                                </td>
                                 <td class="text-end">&#8377;<span th:text="${b.baseFee}">3000.00</span></td>
                                 <td class="text-center">
                                     <span class="badge bg-light text-dark border" th:text="${b.eligibleRebateUnits} + ' meals'">5 meals</span>
@@ -84,6 +89,7 @@
                                 <td class="text-center">
                                     <span th:if="${b.paymentStatus.name() == 'PAID'}" class="badge bg-success">PAID</span>
                                     <span th:if="${b.paymentStatus.name() == 'UNPAID'}" class="badge bg-warning text-dark">UNPAID</span>
+                                    <div th:if="${b.billingMonth == currentRebate.billingMonth and b.paymentStatus.name() == 'UNPAID'}" class="text-muted" style="font-size: 0.68rem;">Live Synced</div>
                                 </td>
                                 <td class="text-end small text-muted" th:text="${#temporals.format(b.generatedAt, 'dd-MMM-yyyy hh:mm a')}">Timestamp</td>
                             </tr>

@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.util.List;
@@ -63,18 +64,32 @@ public class BillingService {
     }
 
     /**
-     * Generates a monthly bill for a single resident.
-     * Prevents duplicate bills for the same student and month.
+     * Generates or recalculates a monthly bill for a single resident.
+     * If an UNPAID bill exists, it recalculates with current approved exemptions.
+     * If a PAID bill exists, prevents modification to preserve the payment audit trail.
      */
     public BillingLedger generateBillForStudent(User user, String billingMonth) {
-        if (billingLedgerRepository.existsByUserAndBillingMonth(user, billingMonth)) {
-            throw new IllegalArgumentException(
-                    "A bill for student " + user.getFullName() + " for month " + billingMonth + " already exists."
-            );
+        parseBillingMonth(billingMonth);
+
+        Optional<BillingLedger> existingOpt = billingLedgerRepository.findByUserAndBillingMonth(user, billingMonth);
+        if (existingOpt.isPresent()) {
+            BillingLedger bill = existingOpt.get();
+            if (bill.getPaymentStatus() == PaymentStatus.PAID) {
+                throw new IllegalStateException(
+                        "Cannot modify bill for student " + user.getFullName() + " for month " + billingMonth + " because it is already marked as PAID."
+                );
+            }
+            // Recalculate UNPAID bill
+            RebateSummary summary = calculateRebateForMonth(user, billingMonth);
+            bill.setBaseFee(summary.getBaseMonthlyFee());
+            bill.setEligibleRebateUnits(summary.getEligibleRebateUnits());
+            bill.setDeductionAmount(summary.getTotalDeduction());
+            bill.setNetAmount(summary.getNetPayable());
+            bill.setGeneratedAt(LocalDateTime.now());
+            return billingLedgerRepository.save(bill);
         }
 
         RebateSummary summary = calculateRebateForMonth(user, billingMonth);
-
         BillingLedger ledger = new BillingLedger(
                 user,
                 billingMonth,
@@ -89,22 +104,35 @@ public class BillingService {
     }
 
     /**
-     * Generates bills for all currently active students for the specified month (YYYY-MM).
-     * Skips students who already have a bill for that month.
+     * Generates or recalculates bills for all currently active students for the specified month (YYYY-MM).
+     * Unpaid bills are safely updated to reflect the latest approved exemptions.
+     * Paid bills are strictly preserved and skipped.
      * 
-     * @return Array of [generatedCount, skippedCount]
+     * @return Array of [processedCount, skippedPaidCount]
      */
     public int[] generateBillsForAllActiveStudents(String billingMonth) {
-        // Validate month format
         parseBillingMonth(billingMonth);
 
         List<User> activeStudents = studentService.getActiveStudents();
-        int generated = 0;
+        int processed = 0;
         int skipped = 0;
 
         for (User student : activeStudents) {
-            if (billingLedgerRepository.existsByUserAndBillingMonth(student, billingMonth)) {
-                skipped++;
+            Optional<BillingLedger> existingOpt = billingLedgerRepository.findByUserAndBillingMonth(student, billingMonth);
+            if (existingOpt.isPresent()) {
+                BillingLedger bill = existingOpt.get();
+                if (bill.getPaymentStatus() == PaymentStatus.PAID) {
+                    skipped++;
+                } else {
+                    RebateSummary summary = calculateRebateForMonth(student, billingMonth);
+                    bill.setBaseFee(summary.getBaseMonthlyFee());
+                    bill.setEligibleRebateUnits(summary.getEligibleRebateUnits());
+                    bill.setDeductionAmount(summary.getTotalDeduction());
+                    bill.setNetAmount(summary.getNetPayable());
+                    bill.setGeneratedAt(LocalDateTime.now());
+                    billingLedgerRepository.save(bill);
+                    processed++;
+                }
             } else {
                 RebateSummary summary = calculateRebateForMonth(student, billingMonth);
                 BillingLedger ledger = new BillingLedger(
@@ -117,11 +145,36 @@ public class BillingService {
                         PaymentStatus.UNPAID
                 );
                 billingLedgerRepository.save(ledger);
-                generated++;
+                processed++;
             }
         }
 
-        return new int[]{generated, skipped};
+        return new int[]{processed, skipped};
+    }
+
+    /**
+     * Synchronizes an existing UNPAID bill for the given month with the latest live approved exemptions.
+     * Does nothing if no bill exists or if the bill is already PAID.
+     */
+    public void syncUnpaidBillWithLiveRebate(User user, String billingMonth) {
+        if (user == null || billingMonth == null) return;
+        try {
+            Optional<BillingLedger> billOpt = billingLedgerRepository.findByUserAndBillingMonth(user, billingMonth);
+            if (billOpt.isPresent()) {
+                BillingLedger bill = billOpt.get();
+                if (bill.getPaymentStatus() == PaymentStatus.UNPAID) {
+                    RebateSummary summary = calculateRebateForMonth(user, billingMonth);
+                    if (!bill.getEligibleRebateUnits().equals(summary.getEligibleRebateUnits())
+                            || bill.getNetAmount().compareTo(summary.getNetPayable()) != 0) {
+                        bill.setEligibleRebateUnits(summary.getEligibleRebateUnits());
+                        bill.setDeductionAmount(summary.getTotalDeduction());
+                        bill.setNetAmount(summary.getNetPayable());
+                        billingLedgerRepository.save(bill);
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     /**
@@ -151,9 +204,36 @@ public class BillingService {
     }
 
     @Transactional(readOnly = true)
+    public Optional<BillingLedger> getBillById(Long billId) {
+        return billingLedgerRepository.findById(billId);
+    }
+
+
+    /**
+     * Marks the given bill as PAID. Used by the student “Pay” flow.
+     */
+
+    @Transactional
+    public BillingLedger markBillAsPaid(Long billId) {
+        BillingLedger bill = billingLedgerRepository.findById(billId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Billing statement not found with ID: " + billId));
+
+        if (bill.getPaymentStatus() == PaymentStatus.PAID) {
+            throw new IllegalStateException("Bill is already marked as PAID.");
+        }
+
+        bill.setPaymentStatus(PaymentStatus.PAID);
+        bill.setGeneratedAt(LocalDateTime.now());
+
+        return billingLedgerRepository.save(bill);
+    }
+
+    @Transactional(readOnly = true)
     public List<BillingLedger> getAllBills() {
         return billingLedgerRepository.findAllByOrderByBillingMonthDescGeneratedAtDesc();
     }
+
 
     @Transactional(readOnly = true)
     public List<BillingLedger> getBillsByMonth(String billingMonth) {

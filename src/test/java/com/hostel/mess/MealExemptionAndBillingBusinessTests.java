@@ -228,19 +228,65 @@ class MealExemptionAndBillingBusinessTests {
     }
 
     @Test
-    @DisplayName("Billing: Prevents duplicate bills for same student and month")
-    void testDuplicateBillPrevention() {
+    @DisplayName("Billing: Prevents modification of already PAID bills")
+    void testPaidBillImmutability() {
         String billingMonth = "2026-11";
+        BillingLedger paidBill = new BillingLedger(sampleStudent, billingMonth,
+                new BigDecimal("3000.00"), 5, new BigDecimal("200.00"), new BigDecimal("2800.00"), PaymentStatus.PAID);
 
-        when(billingLedgerRepository.existsByUserAndBillingMonth(sampleStudent, billingMonth))
-                .thenReturn(true);
+        when(billingLedgerRepository.findByUserAndBillingMonth(sampleStudent, billingMonth))
+                .thenReturn(Optional.of(paidBill));
 
-        IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class, () ->
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
                 billingService.generateBillForStudent(sampleStudent, billingMonth)
         );
 
-        assertTrue(thrown.getMessage().contains("already exists"));
+        assertTrue(thrown.getMessage().contains("already marked as PAID"));
         verify(billingLedgerRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Billing: Recalculates and updates UNPAID bill when exemptions change")
+    void testUnpaidBillRecalculation() {
+        String billingMonth = "2026-11";
+        BillingLedger unpaidBill = new BillingLedger(sampleStudent, billingMonth,
+                new BigDecimal("3000.00"), 5, new BigDecimal("200.00"), new BigDecimal("2800.00"), PaymentStatus.UNPAID);
+
+        when(billingLedgerRepository.findByUserAndBillingMonth(sampleStudent, billingMonth))
+                .thenReturn(Optional.of(unpaidBill));
+        when(mealExemptionRepository.countByUserAndTargetDateBetweenAndStatus(
+                eq(sampleStudent), any(LocalDate.class), any(LocalDate.class), eq(ExemptionStatus.APPROVED)))
+                .thenReturn(14L);
+        when(billingLedgerRepository.save(any(BillingLedger.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        BillingLedger updated = billingService.generateBillForStudent(sampleStudent, billingMonth);
+
+        assertEquals(14, updated.getEligibleRebateUnits());
+        assertEquals(new BigDecimal("560.00"), updated.getDeductionAmount());
+        assertEquals(new BigDecimal("2440.00"), updated.getNetAmount());
+        verify(billingLedgerRepository).save(unpaidBill);
+    }
+
+    @Test
+    @DisplayName("Billing: Syncs unpaid bill with live rebate on student portal load")
+    void testSyncUnpaidBillWithLiveRebate() {
+        String billingMonth = "2026-11";
+        BillingLedger staleBill = new BillingLedger(sampleStudent, billingMonth,
+                new BigDecimal("3000.00"), 9, new BigDecimal("360.00"), new BigDecimal("2640.00"), PaymentStatus.UNPAID);
+
+        when(billingLedgerRepository.findByUserAndBillingMonth(sampleStudent, billingMonth))
+                .thenReturn(Optional.of(staleBill));
+        when(mealExemptionRepository.countByUserAndTargetDateBetweenAndStatus(
+                eq(sampleStudent), any(LocalDate.class), any(LocalDate.class), eq(ExemptionStatus.APPROVED)))
+                .thenReturn(14L);
+
+        billingService.syncUnpaidBillWithLiveRebate(sampleStudent, billingMonth);
+
+        assertEquals(14, staleBill.getEligibleRebateUnits());
+        assertEquals(new BigDecimal("560.00"), staleBill.getDeductionAmount());
+        assertEquals(new BigDecimal("2440.00"), staleBill.getNetAmount());
+        verify(billingLedgerRepository).save(staleBill);
     }
 
     // =========================================================================

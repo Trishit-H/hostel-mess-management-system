@@ -141,9 +141,51 @@
                             </div>
                         </div>
 
-                        <div class="text-end">
-                            <a th:href="@{/student/bills}" class="small text-decoration-none">View Full Billing History &rarr;</a>
-                        </div>
+                                    <div class="text-end mt-2" th:if="${currentBill != null and currentBill.paymentStatus.name() == 'UNPAID'}">
+                                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#payModal">Pay Now</button>
+                                    </div>
+
+    <!-- Pay Confirmation Modal (outside th:if so it always exists in the DOM) -->
+    <div class="modal fade" id="payModal" tabindex="-1" aria-labelledby="payModalLabel" aria-hidden="true"
+         th:if="${currentBill != null and currentBill.paymentStatus.name() == 'UNPAID'}">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="payModalLabel" th:text="'Pay Bill for ' + ${currentBill.billingMonth}">Pay Bill</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <table class="table table-sm mb-0">
+              <tr>
+                <td class="text-muted">Base Fee</td>
+                <td class="fw-bold">&#8377;<span th:text="${currentBill.baseFee}">0.00</span></td>
+              </tr>
+              <tr>
+                <td class="text-muted">Approved Meals</td>
+                <td class="fw-bold"><span th:text="${currentBill.eligibleRebateUnits}">0</span> meals</td>
+              </tr>
+              <tr>
+                <td class="text-muted">Rebate Deduction</td>
+                <td class="fw-bold text-success">-&#8377;<span th:text="${currentBill.deductionAmount}">0.00</span></td>
+              </tr>
+              <tr class="table-primary">
+                <td class="fw-bold">Net Payable</td>
+                <td class="fw-bold text-primary">&#8377;<span th:text="${currentBill.netAmount}">0.00</span></td>
+              </tr>
+            </table>
+            <div class="alert alert-info mt-3 mb-0 small">
+              <strong>Note:</strong> This is a simulated payment. Clicking "Confirm Payment" will mark your bill as PAID.
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <form th:action="@{'/student/pay/' + ${currentBill.billId} + '/confirm'}" method="post" class="d-inline">
+              <button type="submit" class="btn btn-success">✅ Confirm Payment</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
                     </div>
                 </div>
             </div>

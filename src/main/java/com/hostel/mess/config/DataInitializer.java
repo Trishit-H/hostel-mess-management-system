@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import java.util.Optional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -268,29 +269,39 @@ public class DataInitializer implements CommandLineRunner {
         };
 
         for (int i = 0; i < students.size() && i < prevRebateUnits.length; i++) {
-            saveBill(students.get(i), prevMonthStr, prevRebateUnits[i], prevStatuses[i]);
+            saveOrUpdateBill(students.get(i), prevMonthStr, prevRebateUnits[i], prevStatuses[i], false);
         }
 
-        // Current Month Data (Active Billing Cycle)
-        int[] currRebateUnits = {9, 6, 11, 5, 14, 4, 8, 10, 3, 7, 5, 8};
-        PaymentStatus[] currStatuses = {
-                PaymentStatus.UNPAID, PaymentStatus.PAID, PaymentStatus.UNPAID, PaymentStatus.UNPAID,
-                PaymentStatus.UNPAID, PaymentStatus.PAID, PaymentStatus.UNPAID, PaymentStatus.UNPAID,
-                PaymentStatus.UNPAID, PaymentStatus.PAID, PaymentStatus.UNPAID, PaymentStatus.UNPAID
-        };
-
-        for (int i = 0; i < students.size() && i < currRebateUnits.length; i++) {
-            saveBill(students.get(i), currentMonthStr, currRebateUnits[i], currStatuses[i]);
+        // Current Month Data (Active Billing Cycle - dynamically computed from seeded exemptions)
+        for (int i = 0; i < students.size(); i++) {
+            User student = students.get(i);
+            LocalDate start = currentMonth.atDay(1);
+            LocalDate end = currentMonth.atEndOfMonth();
+            long count = mealExemptionRepository.countByUserAndTargetDateBetweenAndStatus(
+                    student, start, end, ExemptionStatus.APPROVED
+            );
+            PaymentStatus status = (i % 3 == 1) ? PaymentStatus.PAID : PaymentStatus.UNPAID;
+            saveOrUpdateBill(student, currentMonthStr, (int) count, status, true);
         }
     }
 
-    private void saveBill(User user, String billingMonth, int rebateUnits, PaymentStatus paymentStatus) {
-        if (!billingLedgerRepository.existsByUserAndBillingMonth(user, billingMonth)) {
-            BigDecimal base = (this.baseMonthlyFee != null) ? this.baseMonthlyFee : new BigDecimal("3000.00");
-            BigDecimal rate = (this.rebatePerMeal != null) ? this.rebatePerMeal : new BigDecimal("40.00");
-            BigDecimal deduction = rate.multiply(BigDecimal.valueOf(rebateUnits));
-            BigDecimal net = base.subtract(deduction).max(BigDecimal.ZERO);
+    private void saveOrUpdateBill(User user, String billingMonth, int rebateUnits, PaymentStatus paymentStatus, boolean updateIfUnpaid) {
+        BigDecimal base = (this.baseMonthlyFee != null) ? this.baseMonthlyFee : new BigDecimal("3000.00");
+        BigDecimal rate = (this.rebatePerMeal != null) ? this.rebatePerMeal : new BigDecimal("40.00");
+        BigDecimal deduction = rate.multiply(BigDecimal.valueOf(rebateUnits));
+        BigDecimal net = base.subtract(deduction).max(BigDecimal.ZERO);
 
+        Optional<BillingLedger> existingOpt = billingLedgerRepository.findByUserAndBillingMonth(user, billingMonth);
+        if (existingOpt.isPresent()) {
+            BillingLedger bill = existingOpt.get();
+            if (updateIfUnpaid && bill.getPaymentStatus() == PaymentStatus.UNPAID) {
+                bill.setBaseFee(base);
+                bill.setEligibleRebateUnits(rebateUnits);
+                bill.setDeductionAmount(deduction);
+                bill.setNetAmount(net);
+                billingLedgerRepository.save(bill);
+            }
+        } else {
             BillingLedger bill = new BillingLedger(
                     user,
                     billingMonth,

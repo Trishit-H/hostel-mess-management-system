@@ -53,7 +53,7 @@
                     </div>
                     <div class="col-12 mt-2">
                         <small class="text-muted">
-                            Formula: <strong>Net Payable = Base Fee (&#8377;<span th:text="${baseFee}">3000.00</span>) - (Approved Exempted Meals &times; &#8377;<span th:text="${rebateRate}">40.00</span>)</strong>. Duplicate bills for the same resident in the same month are safely skipped.
+                            Formula: <strong>Net Payable = Base Fee (&#8377;<span th:text="${baseFee}">3000.00</span>) - (Approved Exempted Meals &times; &#8377;<span th:text="${rebateRate}">40.00</span>)</strong>. Unpaid bills are safely updated with the latest approved exemptions, while paid bills are locked to protect payment records.
                         </small>
                     </div>
                 </form>

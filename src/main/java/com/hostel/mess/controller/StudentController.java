@@ -1,16 +1,18 @@
 package com.hostel.mess.controller;
 
-import com.hostel.mess.entity.BillingLedger;
+
 import com.hostel.mess.entity.MealExemption;
 import com.hostel.mess.entity.MealSlot;
 import com.hostel.mess.entity.User;
-import com.hostel.mess.repository.UserRepository;
+
 import com.hostel.mess.service.BillingService;
 import com.hostel.mess.service.MealExemptionService;
 import com.hostel.mess.service.dto.RebateSummary;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import com.hostel.mess.repository.UserRepository;
+import com.hostel.mess.entity.BillingLedger;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -22,11 +24,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Controller managing student resident interactions:
- * - Student Portal Dashboard
- * - Advance meal exemption submissions & cancellations
- * - Exemption history tracking
- * - Monthly mess bills & rebate transparency
+ * Controller managing Student self-service operations:
+ * - Student Dashboard (Profile, live rebate overview, upcoming exemptions, quick apply form)
+ * - Advance Meal Exemption submission and cutoff-validated cancellations
+ * - Monthly Mess Invoices and itemized rebate deduction statements
  */
 @Controller
 @RequestMapping("/student")
@@ -60,6 +61,14 @@ public class StudentController {
     public String dashboard(@AuthenticationPrincipal UserDetails userDetails, Model model) {
         User user = getAuthenticatedUser(userDetails);
         String currentMonth = YearMonth.now().toString();
+
+        // Ensure the latest bill for the current month exists and is up‑to‑date
+        billingService.syncUnpaidBillWithLiveRebate(user, currentMonth);
+        Optional<BillingLedger> existingBill = billingService.getLatestBillForUser(user);
+        if (existingBill.isEmpty() || !existingBill.get().getBillingMonth().equals(currentMonth)) {
+            // Generate a new bill for the current month if none exists
+            billingService.generateBillForStudent(user, currentMonth);
+        }
 
         List<MealExemption> recentExemptions = mealExemptionService.getRecentExemptions(user);
         RebateSummary currentRebate = billingService.calculateRebateForMonth(user, currentMonth);
@@ -126,10 +135,48 @@ public class StudentController {
     // 3. Monthly Mess Bills
     // =========================================================================
 
+    @GetMapping("/pay/{billId}")
+    public String showPayPage(@PathVariable Long billId,
+                              @AuthenticationPrincipal UserDetails userDetails,
+                              Model model) {
+        User user = getAuthenticatedUser(userDetails);
+        BillingLedger bill = billingService.getBillById(billId)
+                .orElseThrow(() -> new IllegalArgumentException("Bill not found: " + billId));
+        // Ensure the bill belongs to the logged‑in student
+        if (!bill.getUser().getUserId().equals(user.getUserId())) {
+            throw new IllegalArgumentException("You cannot pay a bill that is not yours.");
+        }
+        model.addAttribute("currentUser", user);
+        model.addAttribute("bill", bill);
+        return "student/pay";
+    }
+
+    @PostMapping("/pay/{billId}/confirm")
+    public String confirmPay(@PathVariable Long billId,
+                             @AuthenticationPrincipal UserDetails userDetails,
+                             RedirectAttributes redirectAttributes) {
+        User user = getAuthenticatedUser(userDetails);
+        BillingLedger bill = billingService.getBillById(billId)
+                .orElseThrow(() -> new IllegalArgumentException("Bill not found: " + billId));
+        if (!bill.getUser().getUserId().equals(user.getUserId())) {
+            redirectAttributes.addFlashAttribute("errorMessage", "You cannot pay a bill that is not yours.");
+            return "redirect:/student/dashboard";
+        }
+        if (bill.getPaymentStatus() == com.hostel.mess.entity.PaymentStatus.PAID) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Bill is already marked as PAID.");
+            return "redirect:/student/dashboard";
+        }
+        billingService.markBillAsPaid(billId);
+        redirectAttributes.addFlashAttribute("successMessage", "Bill for " + bill.getBillingMonth() + " has been marked as PAID.");
+        return "redirect:/student/dashboard";
+    }
+
     @GetMapping("/bills")
     public String viewBills(@AuthenticationPrincipal UserDetails userDetails, Model model) {
         User user = getAuthenticatedUser(userDetails);
         String currentMonth = YearMonth.now().toString();
+
+        billingService.syncUnpaidBillWithLiveRebate(user, currentMonth);
 
         model.addAttribute("currentUser", user);
         model.addAttribute("bills", billingService.getBillsForUser(user));
