@@ -61,11 +61,20 @@ class AuthenticationAndRoleAccessTests {
     // =========================================================================
 
     @Test
-    @DisplayName("Public: Homepage is accessible without login")
-    void publicHomePageAccessible() throws Exception {
+    @DisplayName("Public: Root URL redirects directly to login for unauthenticated users")
+    void rootRedirectsToLogin() throws Exception {
         mockMvc.perform(get("/"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("index"));
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login"));
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    @DisplayName("Authenticated: Root URL redirects ADMIN directly to admin dashboard")
+    void rootRedirectsAdminToDashboard() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/dashboard"));
     }
 
     @Test

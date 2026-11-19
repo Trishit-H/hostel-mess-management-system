@@ -13,8 +13,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 @WebMvcTest(HomeController.class)
 @Import({SecurityConfig.class, CustomAuthenticationSuccessHandler.class, CustomUserDetailsService.class})
@@ -27,9 +27,9 @@ class HostelMessApplicationTests {
     private UserRepository userRepository;
 
     @Test
-    void homePageReturnsOk() throws Exception {
+    void rootRedirectsToLoginWhenUnauthenticated() throws Exception {
         mockMvc.perform(get("/"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("index"));
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login"));
     }
 }
